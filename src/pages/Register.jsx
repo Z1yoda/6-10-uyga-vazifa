@@ -1,14 +1,30 @@
 
-import { Box, Container, Typography, TextField, Button } from '@mui/material';
+import { Box, Container, Typography, TextField, Button, Dialog } from '@mui/material';
 import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { validate } from '../functions';
-import Login from './Login';
+import { styled } from '@mui/material/styles';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import IconButton from '@mui/material/IconButton';
+
+const BootstrapDialog = styled(Dialog)(({ theme }) => ({
+    '& .MuiDialogContent-root': {
+        padding: theme.spacing(2),
+    },
+    '& .MuiDialogActions-root': {
+        padding: theme.spacing(1),
+    },
+}));
 
 function Register() {
     const username = useRef()
     const email = useRef()
+    const navigate = useNavigate()
     const password = useRef()
     const [isLoading, setIsLoading] = useState(false)
+    const [open, setOpen] = useState(false);
     const [error, setError] = useState({
         usernameError: "",
         emailError: "",
@@ -16,12 +32,20 @@ function Register() {
         userError: ""
     });
 
+    const handleClickOpen = () => {
+        setOpen(true);
+    };
+    const handleClose = () => {
+        setOpen(false);
+        setError(prevError => ({ ...prevError, userError: '' }));
+    };
+
 
     function handleClick(e) {
         e.preventDefault()
         setIsLoading(true)
 
-        if (validate(username, email, password, setError)) {
+        if (validate(username, password, setError, email)) {
             const user = {
                 username: username.current.value,
                 password: password.current.value,
@@ -31,21 +55,30 @@ function Register() {
             fetch("https://auth-rg69.onrender.com/api/auth/signup", {
                 method: "POST",
                 headers: {
-                    'Content-type': 'application/json'
+                    'Content-Type': 'application/json;charset=utf-8'
                 },
                 body: JSON.stringify(user)
             })
-                .then(res => {
-                    setIsLoading(false)
-                    if (res.status >= 200 && res.status <= 300) {
-                        return res.json()
-                    }
-                })
+                .then((res) => res.json())
                 .then(data => {
-                    console.log(data);
+                    setIsLoading(false)
+                    if (data && data.message == "User registered successfully!") {
+                        navigate('/login')
+
+                    }
+
+                    if (data && data.message == "Failed! Username is already in use!") {
+                        handleClickOpen()
+                        setError(prevError => ({ ...prevError, userError: data.message }));
+                    }
+                    if (data && data.message == "Failed! Email is already in use!") {
+                        handleClickOpen()
+                        setError(prevError => ({ ...prevError, userError: data.message }));
+                    }
                 })
                 .catch(err => {
                     console.log(err);
+                    setIsLoading(false)
                 })
 
         }
@@ -80,6 +113,40 @@ function Register() {
                     <Button disabled={isLoading ? true : false} onClick={handleClick} variant="contained" sx={{ mt: '2rem' }}>{isLoading ? "Loading..." : "Sign up"}</Button>
                 </Box>
             </Box>
+
+            <BootstrapDialog
+                onClose={handleClose}
+                aria-labelledby="customized-dialog-title"
+                open={open}
+            >
+                <DialogTitle sx={{ m: 0, p: 2 }} color="red" id="customized-dialog-title">
+                    Error
+                </DialogTitle>
+                <IconButton
+                    aria-label="close"
+                    onClick={handleClose}
+                    sx={{
+                        position: 'absolute',
+                        right: 8,
+                        top: 8,
+                        color: (theme) => theme.palette.grey[500],
+                    }}
+                >
+                    {/* <CloseIcon /> */}
+                </IconButton>
+                <DialogContent dividers>
+                    <Typography gutterBottom>
+                        {
+                            error.userError
+                        }
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button autoFocus onClick={handleClose}>
+                        Close
+                    </Button>
+                </DialogActions>
+            </BootstrapDialog>
         </Container>
     )
 }
